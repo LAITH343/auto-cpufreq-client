@@ -1,0 +1,197 @@
+import 'package:flutter/widgets.dart';
+
+/// Lightweight string table. `AppStrings.of(lang)` returns a resolver that
+/// falls back to English for any missing key. Supported languages: English
+/// and Arabic (right-to-left).
+class AppStrings {
+  final String lang;
+  const AppStrings(this.lang);
+
+  static const List<String> supported = ['en', 'ar'];
+
+  static const Map<String, String> languageNames = {
+    'en': 'English',
+    'ar': 'العربية',
+  };
+
+  static bool isRtl(String lang) => lang == 'ar';
+
+  static TextDirection directionOf(String lang) =>
+      isRtl(lang) ? TextDirection.rtl : TextDirection.ltr;
+
+  String t(String key) {
+    final dict = _tables[lang] ?? _en;
+    return dict[key] ?? _en[key] ?? key;
+  }
+
+  static const Map<String, Map<String, String>> _tables = {
+    'en': _en,
+    'ar': _ar,
+  };
+
+  static const Map<String, String> _en = {
+    'appName': 'auto cpufreq', 'chooseDevice': 'Choose a device to manage',
+    'thisComputer': 'This computer', 'thisComputerName': 'This computer',
+    'localEngineDetected': 'Local engine detected',
+    'savedDevices': 'Saved devices', 'discoveredLan': 'Discovered on network', 'add': 'Add',
+    'addDeviceManually': 'Add device manually', 'hostPlaceholder': 'Host',
+    'portPlaceholder': 'Port', 'connect': 'Connect',
+    'devices': 'Devices', 'signIn': 'Sign in', 'verifyFingerprint': 'Verify this server',
+    'fingerprintHelp':
+        'First connection to this device. Compare this fingerprint with the one printed by the CLI when enabling the gateway.',
+    'verifyContinue': 'Verify & continue', 'cancel': 'Cancel', 'username': 'Username',
+    'password': 'Password', 'staySignedIn': 'Stay signed in',
+    'demoLoginHint': 'Demo: any username/password signs in',
+    'gatewayDisabledTitle': 'Gateway disabled on host',
+    'gatewayDisabledBody':
+        'This device was found on the network, but its gateway service is not running. Enable it on the host to connect.',
+    'backToDevices': 'Back to devices',
+    'nav_dashboard': 'Dashboard', 'nav_controls': 'Controls', 'nav_config': 'Configuration',
+    'nav_battery': 'Battery', 'nav_users': 'Users & Permissions', 'nav_settings': 'Settings',
+    'readOnly': 'Read-only', 'reconnecting': 'Reconnecting…', 'signOutLabel': 'Switch device',
+    'statusCard': 'Active profile', 'quickActions': 'Quick actions', 'turbo': 'Turbo',
+    'perCore': 'Per-core',
+    'cpuCard': 'CPU', 'cpuUsage': 'Total usage', 'cpuLoad': 'Load average',
+    'cpuTemp': 'Average temp', 'cpuFan': 'Fan',
+    'secPower': 'Power', 'secProfile': 'Profile', 'coresBusy': 'Cores busy',
+    'cpuHistory': 'CPU history', 'legUsage': 'Usage %', 'legTemp': 'Temp °C',
+    'now': 'Now', 'avg': 'Avg', 'peak': 'Peak',
+    'govAuto': 'Auto', 'govPerformance': 'Performance', 'govPowersave': 'Powersave',
+    'lblActiveProfile': 'Profile', 'lblWhy': 'Reason', 'lblGovernor': 'Governor',
+    'lblTurbo': 'Turbo', 'lblEpp': 'EPP', 'lblPlatformProfile': 'Platform profile',
+    'lblPowerSource': 'Power source', 'lblBattery': 'Battery', 'lblPowerDraw': 'Power draw',
+    'lblThresholds': 'Thresholds',
+    'onAC': 'On AC power', 'charging': 'Charging', 'notCharging': 'Not charging',
+    'overrideBanner': 'An override is masking automatic behavior.',
+    'controlsReadOnlyNote': 'You have view-only access to controls.',
+    'governorOverride': 'Governor override', 'turboOverride': 'Turbo override',
+    'currentlyInEffect': 'Currently in effect',
+    'turboAlways': 'Always', 'turboNever': 'Never', 'turboAlwaysOn': 'Always on',
+    'turboDisabled': 'Disabled', 'overridePrefix': 'Override',
+    'tabCharger': 'Charger', 'tabBattery': 'Battery',
+    'configReadOnlyNote': 'You have view-only access to configuration.',
+    'governor': 'Governor', 'epp': 'EPP', 'epb': 'EPB', 'platformProfile': 'Platform profile',
+    'turboMode': 'Turbo mode', 'freqRange': 'Frequency range',
+    'ignoreList': 'Power-supply ignore list', 'ignorePlaceholder': 'Supply name',
+    'apply': 'Apply', 'revert': 'Revert', 'bluetoothBoot': 'Bluetooth on boot',
+    'bluetoothBootHelp': 'Enable the Bluetooth radio automatically at startup.',
+    'cfgErrorMsg': 'Min frequency must be lower than max frequency.',
+    'batteryReadOnlyNote': 'You have view-only access to battery settings.', 'health': 'Health',
+    'chargeThreshold': 'Charge threshold',
+    'chargeThresholdHelp':
+        'Stop charging once the stop threshold is reached, to prolong battery lifespan.',
+    'start': 'Start', 'stop': 'Stop', 'conservationMode': 'Conservation mode',
+    'conservationModeHelp': 'Charge only to ≈60% for long-term storage (Lenovo).',
+    'userList': 'User list', 'newUser': 'New user', 'create': 'Create',
+    'resetPassword': 'Reset password', 'delete': 'Delete',
+    'permissionMatrix': 'Permissions', 'activeSessions': 'Active sessions', 'revoke': 'Revoke',
+    'enabled': 'Enabled', 'disabled': 'Disabled', 'fullAccess': 'Full access',
+    'customPermissions': 'Custom permissions',
+    'featStats': 'Stats', 'featControls': 'Controls', 'featConfig': 'Config',
+    'featBattery': 'Battery', 'featBluetooth': 'Bluetooth',
+    'deviceSection': 'This device', 'deviceName': 'Name', 'reconnectBehavior': 'Reconnect behavior',
+    'reconnectAuto': 'Reconnect automatically', 'reconnectManual': 'Manual only',
+    'forgetDevice': 'Forget device', 'appSection': 'App', 'theme': 'Theme', 'dark': 'Dark',
+    'light': 'Light', 'language': 'Language', 'tempUnit': 'Temperature unit',
+    'chartHistory': 'Chart history length',
+    'notifyBatteryStop': 'Battery stop-threshold alert',
+    'notifyBatteryStopHelp': 'Notify when charging stops at the configured threshold.',
+    'notifyTemp': 'High temperature alert', 'notifyTempHelp': 'Notify when any core exceeds',
+    'about': 'About', 'appVersion': 'App version', 'engineVersion': 'Engine version',
+    'versionMismatch':
+        'Engine version is older than the app expects — some features may be unavailable.',
+    'checkForUpdates': 'Check for updates', 'checkingUpdates': 'Checking…',
+    'upToDate': 'You’re on the latest version', 'updateAvailable': 'Update available',
+    'updateShort': 'Update', 'updateReadyBody': 'A new version is ready to download and install.',
+    'viewUpdate': 'View update', 'nav_update': 'Software update', 'currentVersion': 'Current',
+    'newVersion': 'New', 'whatsNew': 'What’s new', 'downloadSize': 'Download size',
+    'releaseDate': 'Released', 'channel': 'Channel', 'channelStable': 'Stable',
+    'downloadInstall': 'Download & install', 'downloadingLabel': 'Downloading update…',
+    'installingLabel': 'Installing…', 'updateComplete': 'Update installed',
+    'restartToFinish': 'Restart the app to finish updating.', 'restartNow': 'Restart now',
+    'backToSettings': 'Settings', 'permissionDeniedMsg': 'Permission denied by server.',
+    'accent': 'Accent color', 'accountRole': 'Account',
+  };
+
+  static const Map<String, String> _ar = {
+    'appName': 'auto cpufreq', 'chooseDevice': 'اختر جهازًا لإدارته',
+    'thisComputer': 'هذا الحاسوب', 'thisComputerName': 'هذا الحاسوب',
+    'localEngineDetected': 'تم اكتشاف المحرك المحلي',
+    'savedDevices': 'الأجهزة المحفوظة', 'discoveredLan': 'مكتشفة على الشبكة', 'add': 'إضافة',
+    'addDeviceManually': 'إضافة جهاز يدويًا', 'hostPlaceholder': 'المضيف',
+    'portPlaceholder': 'المنفذ', 'connect': 'اتصال',
+    'devices': 'الأجهزة', 'signIn': 'تسجيل الدخول', 'verifyFingerprint': 'تحقق من هذا الخادم',
+    'fingerprintHelp':
+        'أول اتصال بهذا الجهاز. قارن هذه البصمة بالبصمة التي طبعتها الأداة عند تفعيل البوابة.',
+    'verifyContinue': 'تحقق وتابع', 'cancel': 'إلغاء', 'username': 'اسم المستخدم',
+    'password': 'كلمة المرور', 'staySignedIn': 'إبقاء تسجيل الدخول',
+    'demoLoginHint': 'تجريبي: أي اسم مستخدم/كلمة مرور تسجّل الدخول',
+    'gatewayDisabledTitle': 'البوابة معطّلة على المضيف',
+    'gatewayDisabledBody':
+        'تم العثور على هذا الجهاز على الشبكة، لكن خدمة البوابة لا تعمل. فعّلها على المضيف للاتصال.',
+    'backToDevices': 'العودة إلى الأجهزة',
+    'nav_dashboard': 'اللوحة', 'nav_controls': 'التحكم', 'nav_config': 'الإعدادات',
+    'nav_battery': 'البطارية', 'nav_users': 'المستخدمون والصلاحيات', 'nav_settings': 'الإعدادات العامة',
+    'readOnly': 'للقراءة فقط', 'reconnecting': 'جارٍ إعادة الاتصال…', 'signOutLabel': 'تبديل الجهاز',
+    'statusCard': 'الملف النشط', 'quickActions': 'إجراءات سريعة', 'turbo': 'تيربو',
+    'perCore': 'لكل نواة',
+    'cpuCard': 'المعالج', 'cpuUsage': 'الاستخدام الكلي', 'cpuLoad': 'متوسط الحِمل',
+    'cpuTemp': 'متوسط الحرارة', 'cpuFan': 'المروحة',
+    'secPower': 'الطاقة', 'secProfile': 'الملف', 'coresBusy': 'أنوية نشطة',
+    'cpuHistory': 'سجل المعالج', 'legUsage': 'الاستخدام ٪', 'legTemp': 'الحرارة °م',
+    'now': 'الآن', 'avg': 'المتوسط', 'peak': 'الذروة',
+    'govAuto': 'تلقائي', 'govPerformance': 'أداء', 'govPowersave': 'توفير',
+    'lblActiveProfile': 'الملف', 'lblWhy': 'السبب', 'lblGovernor': 'المنظّم',
+    'lblTurbo': 'تيربو', 'lblEpp': 'EPP', 'lblPlatformProfile': 'ملف المنصّة',
+    'lblPowerSource': 'مصدر الطاقة', 'lblBattery': 'البطارية', 'lblPowerDraw': 'استهلاك الطاقة',
+    'lblThresholds': 'الحدود',
+    'onAC': 'على التيار', 'charging': 'قيد الشحن', 'notCharging': 'لا يشحن',
+    'overrideBanner': 'هناك تجاوز يخفي السلوك التلقائي.',
+    'controlsReadOnlyNote': 'لديك صلاحية عرض فقط لعناصر التحكم.',
+    'governorOverride': 'تجاوز المنظّم', 'turboOverride': 'تجاوز التيربو',
+    'currentlyInEffect': 'المفعّل حاليًا',
+    'turboAlways': 'دائمًا', 'turboNever': 'أبدًا', 'turboAlwaysOn': 'مفعّل دائمًا',
+    'turboDisabled': 'معطّل', 'overridePrefix': 'تجاوز',
+    'tabCharger': 'الشاحن', 'tabBattery': 'البطارية',
+    'configReadOnlyNote': 'لديك صلاحية عرض فقط للإعدادات.',
+    'governor': 'المنظّم', 'epp': 'EPP', 'epb': 'EPB', 'platformProfile': 'ملف المنصّة',
+    'turboMode': 'وضع التيربو', 'freqRange': 'نطاق التردد',
+    'ignoreList': 'قائمة تجاهل مصادر الطاقة', 'ignorePlaceholder': 'اسم المصدر',
+    'apply': 'تطبيق', 'revert': 'تراجع', 'bluetoothBoot': 'بلوتوث عند الإقلاع',
+    'bluetoothBootHelp': 'تفعيل راديو البلوتوث تلقائيًا عند بدء التشغيل.',
+    'cfgErrorMsg': 'يجب أن يكون التردد الأدنى أقل من التردد الأقصى.',
+    'batteryReadOnlyNote': 'لديك صلاحية عرض فقط لإعدادات البطارية.', 'health': 'الصحة',
+    'chargeThreshold': 'حد الشحن',
+    'chargeThresholdHelp': 'إيقاف الشحن عند بلوغ حد التوقّف لإطالة عمر البطارية.',
+    'start': 'البدء', 'stop': 'التوقّف', 'conservationMode': 'وضع الحفظ',
+    'conservationModeHelp': 'الشحن حتى ≈٦٠٪ فقط للتخزين الطويل (Lenovo).',
+    'userList': 'قائمة المستخدمين', 'newUser': 'مستخدم جديد', 'create': 'إنشاء',
+    'resetPassword': 'إعادة تعيين كلمة المرور', 'delete': 'حذف',
+    'permissionMatrix': 'الصلاحيات', 'activeSessions': 'الجلسات النشطة', 'revoke': 'إلغاء',
+    'enabled': 'مفعّل', 'disabled': 'معطّل', 'fullAccess': 'وصول كامل',
+    'customPermissions': 'صلاحيات مخصّصة',
+    'featStats': 'الإحصاءات', 'featControls': 'التحكم', 'featConfig': 'الإعداد',
+    'featBattery': 'البطارية', 'featBluetooth': 'البلوتوث',
+    'deviceSection': 'هذا الجهاز', 'deviceName': 'الاسم', 'reconnectBehavior': 'سلوك إعادة الاتصال',
+    'reconnectAuto': 'إعادة الاتصال تلقائيًا', 'reconnectManual': 'يدوي فقط',
+    'forgetDevice': 'نسيان الجهاز', 'appSection': 'التطبيق', 'theme': 'المظهر', 'dark': 'داكن',
+    'light': 'فاتح', 'language': 'اللغة', 'tempUnit': 'وحدة الحرارة',
+    'chartHistory': 'مدة سجل الرسم',
+    'notifyBatteryStop': 'تنبيه حد إيقاف الشحن',
+    'notifyBatteryStopHelp': 'إشعار عند توقّف الشحن عند الحد المضبوط.',
+    'notifyTemp': 'تنبيه ارتفاع الحرارة', 'notifyTempHelp': 'إشعار عند تجاوز أي نواة',
+    'about': 'حول', 'appVersion': 'إصدار التطبيق', 'engineVersion': 'إصدار المحرك',
+    'versionMismatch': 'إصدار المحرك أقدم مما يتوقعه التطبيق — قد تكون بعض الميزات غير متاحة.',
+    'checkForUpdates': 'التحقق من التحديثات', 'checkingUpdates': 'جارٍ التحقق…',
+    'upToDate': 'أنت على أحدث إصدار', 'updateAvailable': 'يتوفر تحديث',
+    'updateShort': 'تحديث', 'updateReadyBody': 'إصدار جديد جاهز للتنزيل والتثبيت.',
+    'viewUpdate': 'عرض التحديث', 'nav_update': 'تحديث البرنامج', 'currentVersion': 'الحالي',
+    'newVersion': 'الجديد', 'whatsNew': 'ما الجديد', 'downloadSize': 'حجم التنزيل',
+    'releaseDate': 'صدر في', 'channel': 'القناة', 'channelStable': 'مستقر',
+    'downloadInstall': 'تنزيل وتثبيت', 'downloadingLabel': 'جارٍ تنزيل التحديث…',
+    'installingLabel': 'جارٍ التثبيت…', 'updateComplete': 'تم تثبيت التحديث',
+    'restartToFinish': 'أعد تشغيل التطبيق لإكمال التحديث.', 'restartNow': 'إعادة التشغيل الآن',
+    'backToSettings': 'الإعدادات', 'permissionDeniedMsg': 'رفض الخادم الإذن.',
+    'accent': 'لون التمييز', 'accountRole': 'الحساب',
+  };
+}
