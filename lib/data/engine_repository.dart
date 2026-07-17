@@ -5,6 +5,7 @@ import '../models/models.dart';
 /// successful mutation.
 class EngineSnapshot {
   final CpuStat cpu;
+  final String cpuModel;
   final List<CoreStat> cores;
   final List<HistPoint> history;
   final PowerStat power;
@@ -15,6 +16,7 @@ class EngineSnapshot {
   /// Saved config keyed by profile ('charger' | 'battery').
   final Map<String, ProfileConfig> config;
   final FrequencyLimits freqLimits;
+  final List<String> availableGovernors;
 
   final BatteryThreshold batteryThreshold;
   final bool conservationMode;
@@ -30,6 +32,7 @@ class EngineSnapshot {
 
   const EngineSnapshot({
     required this.cpu,
+    required this.cpuModel,
     required this.cores,
     required this.history,
     required this.power,
@@ -37,6 +40,7 @@ class EngineSnapshot {
     required this.turboOverride,
     required this.config,
     required this.freqLimits,
+    required this.availableGovernors,
     required this.batteryThreshold,
     required this.conservationMode,
     required this.bluetoothBoot,
@@ -66,6 +70,7 @@ class EngineSnapshot {
   }) =>
       EngineSnapshot(
         cpu: cpu ?? this.cpu,
+        cpuModel: cpuModel,
         cores: cores ?? this.cores,
         history: history ?? this.history,
         power: power ?? this.power,
@@ -73,6 +78,7 @@ class EngineSnapshot {
         turboOverride: turboOverride ?? this.turboOverride,
         config: config ?? this.config,
         freqLimits: freqLimits,
+        availableGovernors: availableGovernors,
         batteryThreshold: batteryThreshold ?? this.batteryThreshold,
         conservationMode: conservationMode ?? this.conservationMode,
         bluetoothBoot: bluetoothBoot ?? this.bluetoothBoot,
@@ -126,11 +132,12 @@ abstract class EngineRepository {
   Future<void> setBluetoothBoot(bool enabled);
 
   // User management — only valid when [capabilities.hasUserManagement].
+  // Users are keyed by username (the engine's Users1 interface has no numeric id).
   Future<void> createUser(String username, String password);
-  Future<void> deleteUser(int id);
-  Future<void> setUserEnabled(int id, bool enabled);
-  Future<void> setUserPermission(int id, String feature, String code);
-  Future<void> resetPassword(int id);
+  Future<void> deleteUser(String username);
+  Future<void> setUserEnabled(String username, bool enabled);
+  Future<void> setUserPermission(String username, String feature, String code);
+  Future<void> resetPassword(String username);
   Future<void> revokeSession(String id);
 
   Future<void> checkForUpdate();

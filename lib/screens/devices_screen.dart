@@ -1,63 +1,40 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide ConnectionState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/strings.dart';
-import '../models/models.dart';
 import '../state/connection_controller.dart';
 import '../state/settings_controller.dart';
 import '../theme/palette.dart';
 import '../theme/typography.dart';
 import '../widgets/common.dart';
 
-class DevicesScreen extends ConsumerStatefulWidget {
+class DevicesScreen extends ConsumerWidget {
   const DevicesScreen({super.key});
 
   @override
-  ConsumerState<DevicesScreen> createState() => _DevicesScreenState();
-}
-
-class _DevicesScreenState extends ConsumerState<DevicesScreen> {
-  final _hostCtrl = TextEditingController();
-  final _portCtrl = TextEditingController(text: '8443');
-
-  @override
-  void dispose() {
-    _hostCtrl.dispose();
-    _portCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final p = ref.watch(paletteProvider);
     final s = ref.watch(stringsProvider);
-    final conn = ref.read(connectionProvider.notifier);
+    final conn = ref.watch(connectionProvider);
+    final connCtrl = ref.read(connectionProvider.notifier);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
+          constraints: const BoxConstraints(maxWidth: 560),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _header(p, s),
               const SizedBox(height: 28),
-              _group(p, s.t('thisComputer'), [
-                _deviceTile(p, s, ConnectionController.localDevice, conn, isLocal: true),
-              ]),
-              const SizedBox(height: 24),
-              _group(p, s.t('savedDevices'),
-                  ConnectionController.savedDevices.map((d) => _deviceTile(p, s, d, conn)).toList()),
-              const SizedBox(height: 24),
-              _group(
-                  p,
-                  s.t('discoveredLan'),
-                  ConnectionController.discoveredDevices
-                      .map((d) => _deviceTile(p, s, d, conn, discovered: true))
-                      .toList()),
-              const SizedBox(height: 24),
-              _manualAdd(p, s, conn),
+              SectionLabel(p, s.t('thisComputer')),
+              const SizedBox(height: 10),
+              _localTile(p, s, conn, connCtrl),
+              if (conn.error != null) ...[
+                const SizedBox(height: 12),
+                _errorNote(p, conn.error!),
+              ],
             ],
           ),
         ),
@@ -89,77 +66,52 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
     );
   }
 
-  Widget _group(Palette p, String label, List<Widget> children) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SectionLabel(p, label),
-        const SizedBox(height: 10),
-        ...children.map((c) => Padding(padding: const EdgeInsets.only(bottom: 8), child: c)),
-      ],
-    );
-  }
-
-  Widget _deviceTile(Palette p, AppStrings s, Device d, ConnectionController conn,
-      {bool isLocal = false, bool discovered = false}) {
-    final online = d.online;
+  Widget _localTile(
+      Palette p, AppStrings s, ConnectionState conn, ConnectionController connCtrl) {
     return GestureDetector(
-      onTap: () => conn.selectDevice(d),
+      onTap: conn.connecting ? null : connCtrl.connectLocal,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         decoration: BoxDecoration(
           color: p.surface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: p.border,
-            style: discovered ? BorderStyle.solid : BorderStyle.solid,
-          ),
+          border: Border.all(color: p.border),
         ),
         child: Row(
           children: [
             Container(
               width: 10,
               height: 10,
-              decoration: BoxDecoration(
-                color: online ? p.success : p.textFaint,
-                shape: BoxShape.circle,
-                boxShadow: online
-                    ? [BoxShadow(color: p.successSoft, blurRadius: 0, spreadRadius: 3)]
-                    : null,
-              ),
+              decoration: BoxDecoration(color: p.success, shape: BoxShape.circle),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(isLocal ? s.t('thisComputerName') : d.name,
+                  Text(s.t('thisComputerName'),
                       style: AppFonts.sans(size: 15, weight: FontWeight.w700, color: p.text)),
                   const SizedBox(height: 2),
-                  Text(isLocal ? s.t('localEngineDetected') : d.hostLabel,
-                      style: isLocal
-                          ? AppFonts.sans(size: 12.5, color: p.textDim)
-                          : AppFonts.mono(size: 12.5, color: p.textDim)),
+                  Text(s.t('localEngineDetected'),
+                      style: AppFonts.sans(size: 12.5, color: p.textDim)),
                 ],
               ),
             ),
             const SizedBox(width: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-              decoration: BoxDecoration(
-                color: isLocal ? p.accentSoft : p.surface2,
-                borderRadius: BorderRadius.circular(100),
-              ),
-              child: Text(d.badge,
-                  style: AppFonts.mono(
-                      size: 11,
-                      weight: FontWeight.w700,
-                      color: isLocal ? p.accent : p.textDim)),
+              decoration:
+                  BoxDecoration(color: p.accentSoft, borderRadius: BorderRadius.circular(100)),
+              child: Text('D-Bus',
+                  style: AppFonts.mono(size: 11, weight: FontWeight.w700, color: p.accent)),
             ),
             const SizedBox(width: 10),
-            if (discovered)
-              Text(s.t('add'),
-                  style: AppFonts.sans(size: 12.5, weight: FontWeight.w700, color: p.accent))
+            if (conn.connecting)
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: p.accent),
+              )
             else
               Icon(Icons.chevron_right, size: 20, color: p.textFaint),
           ],
@@ -168,33 +120,21 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
     );
   }
 
-  Widget _manualAdd(Palette p, AppStrings s, ConnectionController conn) {
-    return AppCard(
-      p: p,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      radius: BorderRadius.circular(10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget _errorNote(Palette p, String message) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: p.dangerSoft,
+        border: Border.all(color: p.danger),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
         children: [
-          Text(s.t('addDeviceManually'),
-              style: AppFonts.sans(size: 13.5, weight: FontWeight.w700, color: p.text)),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: AppTextField(p: p, controller: _hostCtrl, hint: s.t('hostPlaceholder'))),
-              const SizedBox(width: 10),
-              SizedBox(
-                width: 90,
-                child: AppTextField(
-                    p: p, controller: _portCtrl, hint: s.t('portPlaceholder'), keyboardType: TextInputType.number),
-              ),
-              const SizedBox(width: 10),
-              PrimaryButton(
-                p: p,
-                label: s.t('connect'),
-                onPressed: () => conn.connectManual(_hostCtrl.text.trim(), _portCtrl.text.trim()),
-              ),
-            ],
+          Icon(Icons.error_outline, size: 15, color: p.danger),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(message,
+                style: AppFonts.sans(size: 12.5, weight: FontWeight.w600, color: p.danger)),
           ),
         ],
       ),

@@ -229,7 +229,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _aboutCard(Palette p, AppStrings s, dynamic snap, dynamic repo,
       ConnectionController conn) {
     final update = snap.update as UpdateInfo;
-    final mismatch = snap.appVersion != snap.engineVersion;
+    final engineVer = snap.engineVersion as String;
+    // Hide the mismatch warning for dev builds that report 0.0.0 / no version.
+    final mismatch = engineVer.isNotEmpty &&
+        engineVer != '0.0.0' &&
+        snap.appVersion != engineVer;
     final checking = update.check == UpdateCheck.checking;
     final available = update.check == UpdateCheck.available;
 

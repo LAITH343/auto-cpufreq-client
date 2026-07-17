@@ -80,7 +80,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                 opacity: editable ? 1 : 0.5,
                 child: IgnorePointer(
                   ignoring: !editable,
-                  child: _configCard(p, s, cfg, ctrl, snap.freqLimits),
+                  child: _configCard(p, s, cfg, ctrl, snap.freqLimits, snap.availableGovernors),
                 ),
               ),
               const SizedBox(height: 18),
@@ -109,7 +109,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
   }
 
   Widget _configCard(Palette p, dynamic s, ProfileConfig cfg, ConfigController ctrl,
-      FrequencyLimits limits) {
+      FrequencyLimits limits, List<String> governors) {
     Widget field(String label, Widget child) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -121,7 +121,7 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
 
     final selects = <Widget>[
       field(s.t('governor'),
-          AppDropdown<String>(p: p, value: cfg.governor, items: _withCurrent(EngineChoices.governors, cfg.governor), onChanged: (v) => ctrl.setGovernor(v!))),
+          AppDropdown<String>(p: p, value: cfg.governor, items: _withCurrent(governors, cfg.governor), onChanged: (v) => ctrl.setGovernor(v!))),
       field(s.t('epp'),
           AppDropdown<String>(p: p, value: cfg.epp, items: _withCurrent(EngineChoices.epp, cfg.epp), onChanged: (v) => ctrl.setEpp(v!))),
       field(s.t('epb'),

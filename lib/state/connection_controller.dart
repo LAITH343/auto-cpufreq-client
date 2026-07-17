@@ -2,84 +2,62 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/dbus_engine_repository.dart';
 import '../data/engine_repository.dart';
-import '../data/mock_engine_repository.dart';
 import '../models/models.dart';
 
-/// Top-level app flow before/after connecting to a device.
-enum AppFlow { devices, login, gatewayDisabled, shell }
+/// Top-level app flow. Only the local D-Bus transport is wired today; the
+/// remote HTTP/S gateway path lands in a later pass.
+enum AppFlow { devices, shell }
 
 /// Screens available inside the connected shell.
 enum AppScreen { dashboard, controls, config, battery, users, settings, update }
 
-/// The demo roles the prototype offers (owner over D-Bus, admin/limited over
-/// HTTPS). A real build derives permissions from the engine, not a picker.
-enum ConnRole { owner, admin, limited }
-
-const Map<ConnRole, Map<String, String>> _rolePerms = {
-  ConnRole.owner: {'stats': 'rw', 'controls': 'rw', 'config': 'rw', 'battery': 'rw', 'bluetooth': 'rw'},
-  ConnRole.admin: {'stats': 'rw', 'controls': 'rw', 'config': 'rw', 'battery': 'rw', 'bluetooth': 'rw'},
-  ConnRole.limited: {'stats': 'rw', 'controls': 'r', 'config': 'none', 'battery': 'r', 'bluetooth': 'none'},
-};
-
-const Map<ConnRole, String> _roleLabels = {
-  ConnRole.owner: 'Owner · Full access',
-  ConnRole.admin: 'alice · Admin',
-  ConnRole.limited: 'bob · Limited',
-};
-
 class ConnectionState {
   final AppFlow flow;
   final AppScreen screen;
-  final Transport? mode;
-  final ConnRole role;
+  final Transport mode;
   final Permissions permissions;
   final bool hasUserManagement;
-  final Device? pendingDevice;
-  final bool showTofu;
+  final bool connecting;
+  final String? error;
   final bool reconnecting;
   final EngineRepository? repository;
 
   const ConnectionState({
     this.flow = AppFlow.devices,
     this.screen = AppScreen.dashboard,
-    this.mode,
-    this.role = ConnRole.owner,
+    this.mode = Transport.dbus,
     this.permissions = const Permissions({
       'stats': 'rw', 'controls': 'rw', 'config': 'rw', 'battery': 'rw', 'bluetooth': 'rw',
     }),
     this.hasUserManagement = true,
-    this.pendingDevice,
-    this.showTofu = true,
+    this.connecting = false,
+    this.error,
     this.reconnecting = false,
     this.repository,
   });
 
-  String get connLabel => _roleLabels[role]!;
+  // Over D-Bus the app is the local owner with full access.
+  String get connLabel => 'Owner · Full access';
   String get connMode => mode == Transport.dbus ? 'D-Bus' : 'HTTPS';
 
   ConnectionState copyWith({
     AppFlow? flow,
     AppScreen? screen,
-    Object? mode = _sentinel,
-    ConnRole? role,
-    Permissions? permissions,
-    bool? hasUserManagement,
-    Object? pendingDevice = _sentinel,
-    bool? showTofu,
+    bool? connecting,
+    Object? error = _sentinel,
     bool? reconnecting,
     Object? repository = _sentinel,
   }) =>
       ConnectionState(
         flow: flow ?? this.flow,
         screen: screen ?? this.screen,
-        mode: mode == _sentinel ? this.mode : mode as Transport?,
-        role: role ?? this.role,
-        permissions: permissions ?? this.permissions,
-        hasUserManagement: hasUserManagement ?? this.hasUserManagement,
-        pendingDevice:
-            pendingDevice == _sentinel ? this.pendingDevice : pendingDevice as Device?,
-        showTofu: showTofu ?? this.showTofu,
+        mode: mode,
+        permissions: permissions,
+        hasUserManagement: hasUserManagement,
+        connecting: connecting ?? this.connecting,
+        error: error == _sentinel ? this.error : error as String?,
         reconnecting: reconnecting ?? this.reconnecting,
         repository: repository == _sentinel ? this.repository : repository as EngineRepository?,
       );
@@ -90,11 +68,6 @@ class ConnectionState {
 class ConnectionController extends StateNotifier<ConnectionState> {
   ConnectionController() : super(const ConnectionState());
 
-  Timer? _reconnectTimer;
-
-  static const String tofuFingerprint =
-      'SHA256: 4F:9A:2C:1D:7E:88:B3:60:12:AE:5D:9F:C4:37:20:6B';
-
   static const Device localDevice = Device(
     id: 'local',
     name: 'This computer',
@@ -104,112 +77,39 @@ class ConnectionController extends StateNotifier<ConnectionState> {
     online: true,
   );
 
-  static const List<Device> savedDevices = [
-    Device(id: 'office', name: 'office-workstation', host: 'office-workstation.local', port: 8443, transport: Transport.https, online: true),
-    Device(id: 'bedroom', name: 'bedroom-laptop', host: 'bedroom-laptop.local', port: 8443, transport: Transport.https, online: false),
-  ];
-
-  static const List<Device> discoveredDevices = [
-    Device(id: 'mediapc', name: 'media-pc', host: 'media-pc.local', port: 8443, transport: Transport.https, online: true),
-    Device(id: 'nas', name: 'home-nas', host: 'home-nas.local', port: 8443, transport: Transport.https, online: true, gatewayDisabled: true),
-  ];
-
-  void setRole(ConnRole role) => state = state.copyWith(role: role);
-
   void goScreen(AppScreen screen) => state = state.copyWith(screen: screen);
 
-  void selectDevice(Device device) {
-    if (device.gatewayDisabled) {
-      state = state.copyWith(flow: AppFlow.gatewayDisabled);
-      return;
+  /// Connects to the local engine over the system D-Bus.
+  Future<void> connectLocal() async {
+    if (state.connecting) return;
+    state = state.copyWith(connecting: true, error: null);
+    try {
+      final repo = await DbusEngineRepository.connect();
+      state = state.copyWith(
+        flow: AppFlow.shell,
+        screen: AppScreen.dashboard,
+        repository: repo,
+        connecting: false,
+        error: null,
+      );
+    } on EngineUnavailableException catch (e) {
+      state = state.copyWith(connecting: false, error: e.message);
+    } catch (e) {
+      state = state.copyWith(connecting: false, error: 'Failed to connect: $e');
     }
-    if (device.transport == Transport.dbus) {
-      _connect(Transport.dbus, ConnRole.owner);
-      return;
-    }
-    state = state.copyWith(
-      flow: AppFlow.login,
-      mode: Transport.https,
-      pendingDevice: device,
-      showTofu: true,
-    );
   }
 
-  void connectManual(String host, String port) {
-    if (host.isEmpty) return;
-    final device = Device(
-      id: 'manual',
-      name: host,
-      host: host,
-      port: int.tryParse(port) ?? 8443,
-      transport: Transport.https,
-      online: true,
-    );
-    state = state.copyWith(
-      flow: AppFlow.login,
-      mode: Transport.https,
-      pendingDevice: device,
-      showTofu: true,
-    );
-  }
+  void signOut() => _disconnect();
+  void forgetDevice() => _disconnect();
 
-  void confirmTofu() => state = state.copyWith(showTofu: false);
-
-  void backToDevices() {
-    _disposeRepo();
-    state = const ConnectionState();
-  }
-
-  /// Completes an HTTPS login. In the prototype any credentials work; the
-  /// active demo role determines the permission set.
-  void login() {
-    _connect(state.mode ?? Transport.https, state.role);
-  }
-
-  void signOut() => backToDevices();
-
-  void forgetDevice() => backToDevices();
-
-  void simulateReconnect() {
-    state = state.copyWith(reconnecting: true);
-    _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted) state = state.copyWith(reconnecting: false);
-    });
-  }
-
-  void _connect(Transport mode, ConnRole role) {
-    _disposeRepo();
-    final dbus = mode == Transport.dbus;
-    final perms = dbus ? Permissions.all() : Permissions(_rolePerms[role]!);
-    final repo = MockEngineRepository(
-      capabilities: EngineCapabilities(
-        hasUserManagement: dbus,
-        permissions: perms,
-      ),
-    );
-    state = state.copyWith(
-      flow: AppFlow.shell,
-      screen: AppScreen.dashboard,
-      mode: mode,
-      role: dbus ? ConnRole.owner : role,
-      permissions: perms,
-      hasUserManagement: dbus,
-      repository: repo,
-      showTofu: true,
-      pendingDevice: null,
-      reconnecting: false,
-    );
-  }
-
-  void _disposeRepo() {
+  void _disconnect() {
     state.repository?.dispose();
+    state = const ConnectionState();
   }
 
   @override
   void dispose() {
-    _reconnectTimer?.cancel();
-    _disposeRepo();
+    state.repository?.dispose();
     super.dispose();
   }
 }

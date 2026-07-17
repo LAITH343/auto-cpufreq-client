@@ -17,7 +17,7 @@ class UsersScreen extends ConsumerStatefulWidget {
 }
 
 class _UsersScreenState extends ConsumerState<UsersScreen> {
-  int? _selectedId;
+  String? _selectedName;
   bool _creating = false;
   final _nameCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
@@ -141,7 +141,7 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
   }
 
   Widget _userRow(Palette p, AppStrings s, AppUser u, dynamic repo) {
-    final selected = _selectedId == u.id;
+    final selected = _selectedName == u.name;
     final allRw = kFeatures.every((f) => u.perms[f] == 'rw');
     final summary = !u.enabled
         ? s.t('disabled')
@@ -152,7 +152,7 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
       child: Column(
         children: [
           GestureDetector(
-            onTap: () => setState(() => _selectedId = selected ? null : u.id),
+            onTap: () => setState(() => _selectedName = selected ? null : u.name),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
               decoration: BoxDecoration(
@@ -172,7 +172,7 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(u.username,
+                        Text(u.name,
                             style: AppFonts.sans(size: 14, weight: FontWeight.w700, color: p.text)),
                         const SizedBox(height: 2),
                         Text(summary, style: AppFonts.sans(size: 11.5, color: p.textDim)),
@@ -180,7 +180,7 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () => repo?.setUserEnabled(u.id, !u.enabled),
+                    onTap: () => repo?.setUserEnabled(u.name, !u.enabled),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
@@ -195,10 +195,10 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _linkAction(p, s.t('resetPassword'), p.textDim, () => repo?.resetPassword(u.id)),
+                  _linkAction(p, s.t('resetPassword'), p.textDim, () => repo?.resetPassword(u.name)),
                   _linkAction(p, s.t('delete'), p.danger, () {
-                    if (_selectedId == u.id) _selectedId = null;
-                    repo?.deleteUser(u.id);
+                    if (_selectedName == u.name) _selectedName = null;
+                    repo?.deleteUser(u.name);
                   }),
                 ],
               ),
@@ -244,9 +244,9 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
                     child: Text(s.t(_featureKeys[f]!),
                         style: AppFonts.sans(size: 13, weight: FontWeight.w600, color: p.text)),
                   ),
-                  _permBox(p, 'R', hasR, () => repo?.setUserPermission(u.id, f, _toggleCode(val, 'r'))),
+                  _permBox(p, 'R', hasR, () => repo?.setUserPermission(u.name, f, _toggleCode(val, 'r'))),
                   const SizedBox(width: 12),
-                  _permBox(p, 'W', hasW, () => repo?.setUserPermission(u.id, f, _toggleCode(val, 'w'))),
+                  _permBox(p, 'W', hasW, () => repo?.setUserPermission(u.name, f, _toggleCode(val, 'w'))),
                 ],
               ),
             );

@@ -7,8 +7,6 @@ import 'state/connection_controller.dart';
 import 'state/settings_controller.dart';
 import 'theme/palette.dart';
 import 'screens/devices_screen.dart';
-import 'screens/gateway_disabled_screen.dart';
-import 'screens/login_screen.dart';
 import 'screens/shell_screen.dart';
 
 class AutoCpufreqApp extends ConsumerWidget {
@@ -70,12 +68,6 @@ class _Root extends ConsumerWidget {
     switch (flow) {
       case AppFlow.devices:
         body = const DevicesScreen();
-        break;
-      case AppFlow.login:
-        body = const LoginScreen();
-        break;
-      case AppFlow.gatewayDisabled:
-        body = const GatewayDisabledScreen();
         break;
       case AppFlow.shell:
         body = const ShellScreen();

@@ -211,20 +211,17 @@ class BatteryInfo {
 }
 
 class AppUser {
-  final int id;
-  final String username;
+  final String name;
   final bool enabled;
-  final Map<String, String> perms;
+  final Map<String, String> perms; // feature -> 'none' | 'r' | 'rw'
   const AppUser({
-    required this.id,
-    required this.username,
+    required this.name,
     required this.enabled,
     required this.perms,
   });
 
   AppUser copyWith({bool? enabled, Map<String, String>? perms}) => AppUser(
-        id: id,
-        username: username,
+        name: name,
         enabled: enabled ?? this.enabled,
         perms: perms ?? this.perms,
       );
@@ -310,4 +307,13 @@ class ConfigValidationError implements Exception {
 /// Raised when the server refuses an action for lack of permission.
 class PermissionDeniedError implements Exception {
   PermissionDeniedError();
+}
+
+/// Raised when the engine's D-Bus name has no owner (daemon not running or not
+/// reachable — e.g. missing D-Bus policy).
+class EngineUnavailableException implements Exception {
+  final String message;
+  EngineUnavailableException(this.message);
+  @override
+  String toString() => message;
 }
