@@ -8,23 +8,38 @@ import 'state/settings_controller.dart';
 import 'theme/palette.dart';
 import 'screens/devices_screen.dart';
 import 'screens/shell_screen.dart';
+import 'util/platform.dart';
+import 'widgets/window_chrome.dart';
 
 class AutoCpufreqApp extends ConsumerWidget {
   const AutoCpufreqApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(settingsProvider);
     final palette = ref.watch(paletteProvider);
+    final dark = ref.watch(isDarkProvider);
+    final lang = ref.watch(effectiveLangProvider);
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'auto cpufreq',
-      theme: _theme(palette, settings.dark),
-      builder: (context, child) => Directionality(
-        textDirection: AppStrings.directionOf(settings.lang),
-        child: child ?? const SizedBox.shrink(),
-      ),
+      theme: _theme(palette, dark),
+      builder: (context, child) {
+        Widget content = child ?? const SizedBox.shrink();
+        content = Directionality(
+          textDirection: AppStrings.directionOf(lang),
+          child: content,
+        );
+        if (isDesktop) {
+          content = Column(
+            children: [
+              const DesktopTitleBar(),
+              Expanded(child: content),
+            ],
+          );
+        }
+        return content;
+      },
       home: const _Root(),
     );
   }

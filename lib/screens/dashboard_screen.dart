@@ -76,7 +76,7 @@ class DashboardScreen extends ConsumerWidget {
       _KpiCard(
         p: p,
         label: s.t('lblPowerDraw'),
-        value: '${snap.power.watts.toStringAsFixed(1)} W',
+        value: _wattsLabel(snap.power.watts),
         trend: _trend(watts),
         color: p.success,
         values: watts,
@@ -345,7 +345,7 @@ class DashboardScreen extends ConsumerWidget {
         card(s.t('secPower'), spaced([
           StatRow(p: p, label: s.t('lblPowerSource'), value: snap.power.source == 'AC' ? s.t('onAC') : s.t('lblBattery')),
           StatRow(p: p, label: s.t('lblBattery'), value: '${snap.power.batteryPct}% · $charging'),
-          StatRow(p: p, label: s.t('lblPowerDraw'), value: '${snap.power.watts.toStringAsFixed(1)} W', valueColor: p.accent),
+          StatRow(p: p, label: s.t('lblPowerDraw'), value: _wattsLabel(snap.power.watts), valueColor: p.accent),
           StatRow(p: p, label: s.t('lblThresholds'), value: '${snap.batteryThreshold.start}–${snap.batteryThreshold.stop}%'),
         ])),
         const SizedBox(height: 14),
@@ -438,6 +438,10 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 }
+
+/// Battery power draw is 0 when on AC and not (dis)charging — show "—" there
+/// rather than a dead "0.0 W".
+String _wattsLabel(double watts) => watts > 0 ? '${watts.toStringAsFixed(1)} W' : '—';
 
 /// A simple fixed-column grid built from Wrap, so children size evenly.
 Widget _grid(List<Widget> children, int cols, double gap) {

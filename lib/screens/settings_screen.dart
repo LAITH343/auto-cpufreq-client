@@ -124,12 +124,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             p,
             s.t('theme'),
             SizedBox(
-              width: 150,
-              child: SegmentedControl<bool>(
+              width: 220,
+              child: SegmentedControl<AppThemeMode>(
                 p: p,
-                selected: settings.dark,
-                onChanged: ctrl.setDark,
-                options: [SegmentOption(true, s.t('dark')), SegmentOption(false, s.t('light'))],
+                selected: settings.themeMode,
+                onChanged: ctrl.setThemeMode,
+                itemPadding: const EdgeInsets.symmetric(vertical: 7, horizontal: 6),
+                options: [
+                  SegmentOption(AppThemeMode.system, s.t('system')),
+                  SegmentOption(AppThemeMode.light, s.t('light')),
+                  SegmentOption(AppThemeMode.dark, s.t('dark')),
+                ],
               ),
             ),
           ),
@@ -140,7 +145,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: kAccentChoices.map((color) {
-                final active = settings.effectiveAccent.toARGB32() == color.toARGB32();
+                final active = p.accent.toARGB32() == color.toARGB32();
                 return GestureDetector(
                   onTap: () => ctrl.setAccent(color),
                   child: Container(
@@ -168,10 +173,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               width: 150,
               child: AppDropdown<String>(
                 p: p,
-                value: settings.lang,
-                items: AppStrings.supported,
-                labelOf: (v) => AppStrings.languageNames[v] ?? v,
-                onChanged: (v) => ctrl.setLang(v!),
+                value: settings.languageMode,
+                items: const [kLanguageSystem, ...AppStrings.supported],
+                labelOf: (v) => v == kLanguageSystem ? s.t('system') : (AppStrings.languageNames[v] ?? v),
+                onChanged: (v) => ctrl.setLanguageMode(v!),
               ),
             ),
           ),
