@@ -16,7 +16,7 @@ void main() async {
     await windowManager.ensureInitialized();
     const options = WindowOptions(
       size: Size(1120, 780),
-      minimumSize: Size(720, 560),
+      minimumSize: Size(560, 600),
       center: true,
       title: 'auto cpufreq',
       titleBarStyle: TitleBarStyle.hidden,

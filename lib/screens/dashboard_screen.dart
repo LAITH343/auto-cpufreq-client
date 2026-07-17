@@ -57,11 +57,20 @@ class DashboardScreen extends ConsumerWidget {
     final cards = [
       _KpiCard(
         p: p,
-        label: s.t('cpuUsage'),
-        value: '${snap.cpu.usage.round()}%',
+        label: s.t('cpuLoad'),
+        value: snap.cpu.load.split(',').first.trim(),
         trend: _trend(usage),
         color: p.accent,
         values: usage,
+        isBar: false,
+      ),
+      _KpiCard(
+        p: p,
+        label: s.t('lblPowerDraw'),
+        value: _wattsLabel(snap.power.watts),
+        trend: _trend(watts),
+        color: p.success,
+        values: watts,
         isBar: false,
       ),
       _KpiCard(
@@ -75,19 +84,10 @@ class DashboardScreen extends ConsumerWidget {
       ),
       _KpiCard(
         p: p,
-        label: s.t('lblPowerDraw'),
-        value: _wattsLabel(snap.power.watts),
-        trend: _trend(watts),
-        color: p.success,
-        values: watts,
-        isBar: true,
-      ),
-      _KpiCard(
-        p: p,
         label: s.t('coresBusy'),
         value: '$busy/${snap.cores.length}',
         trend: null,
-        color: p.accent,
+        color: p.danger,
         values: snap.cores.map((c) => c.usage).toList(),
         isBar: true,
       ),

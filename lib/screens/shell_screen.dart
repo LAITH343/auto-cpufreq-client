@@ -7,6 +7,7 @@ import '../state/connection_controller.dart';
 import '../state/settings_controller.dart';
 import '../theme/palette.dart';
 import '../theme/typography.dart';
+import '../util/platform.dart';
 import 'battery_screen.dart';
 import 'config_screen.dart';
 import 'controls_screen.dart';
@@ -79,28 +80,29 @@ class ShellScreen extends ConsumerWidget {
     final updateAvailable =
         snap != null && snap.update.check == UpdateCheck.available && conn.screen != AppScreen.update;
 
-    final content = Column(
-      children: [
-        _Header(
-          p: p,
-          s: s,
-          title: s.t(_titleKeys[conn.screen] ?? 'nav_dashboard'),
-          connMode: conn.connMode,
-          readOnly: _screenReadOnly(conn),
-          showUpdateChip: updateAvailable,
-          onUpdate: () => ref.read(connectionProvider.notifier).goScreen(AppScreen.update),
-        ),
-        if (conn.reconnecting)
-          Container(
-            width: double.infinity,
-            color: p.warningSoft,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 9),
-            child: Text(s.t('reconnecting'),
-                style: AppFonts.sans(size: 12.5, weight: FontWeight.w700, color: p.warning)),
-          ),
-        Expanded(child: _ScreenBody(conn.screen)),
-      ],
-    );
+    Widget content({VoidCallback? onMenu}) => Column(
+          children: [
+            _Header(
+              p: p,
+              s: s,
+              title: s.t(_titleKeys[conn.screen] ?? 'nav_dashboard'),
+              connMode: conn.connMode,
+              readOnly: _screenReadOnly(conn),
+              showUpdateChip: updateAvailable,
+              onUpdate: () => ref.read(connectionProvider.notifier).goScreen(AppScreen.update),
+              onMenu: onMenu,
+            ),
+            if (conn.reconnecting)
+              Container(
+                width: double.infinity,
+                color: p.warningSoft,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 9),
+                child: Text(s.t('reconnecting'),
+                    style: AppFonts.sans(size: 12.5, weight: FontWeight.w700, color: p.warning)),
+              ),
+            Expanded(child: _ScreenBody(conn.screen)),
+          ],
+        );
 
     if (isWide) {
       return ColoredBox(
@@ -108,18 +110,33 @@ class ShellScreen extends ConsumerWidget {
         child: Row(
           children: [
             _Sidebar(p: p, s: s, conn: conn, nav: nav),
-            Expanded(child: content),
+            Expanded(child: content()),
           ],
         ),
       );
     }
-    return ColoredBox(
-      color: p.bg,
-      child: Column(
-        children: [
-          Expanded(child: content),
-          const ShellBottomNav(),
-        ],
+
+    // Narrow: navigation collapses into a slide-in drawer opened from the
+    // header. The drawer only repeats the app identity when there is no desktop
+    // title bar already showing it.
+    return Scaffold(
+      backgroundColor: p.bg,
+      drawerEdgeDragWidth: 24,
+      drawer: Drawer(
+        width: 260,
+        backgroundColor: p.bg,
+        shape: const RoundedRectangleBorder(),
+        child: _Sidebar(
+          p: p,
+          s: s,
+          conn: conn,
+          nav: nav,
+          inDrawer: true,
+          showIdentity: !isDesktop,
+        ),
+      ),
+      body: Builder(
+        builder: (context) => content(onMenu: () => Scaffold.of(context).openDrawer()),
       ),
     );
   }
@@ -158,6 +175,7 @@ class _Header extends StatelessWidget {
   final bool readOnly;
   final bool showUpdateChip;
   final VoidCallback onUpdate;
+  final VoidCallback? onMenu;
 
   const _Header({
     required this.p,
@@ -167,6 +185,7 @@ class _Header extends StatelessWidget {
     required this.readOnly,
     required this.showUpdateChip,
     required this.onUpdate,
+    this.onMenu,
   });
 
   @override
@@ -178,6 +197,17 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
+          if (onMenu != null) ...[
+            InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: onMenu,
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Icon(Icons.menu, size: 20, color: p.text),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
           Expanded(
             child: Text(title, style: AppFonts.sans(size: 16, weight: FontWeight.w800, color: p.text)),
           ),
@@ -245,42 +275,61 @@ class _Sidebar extends ConsumerWidget {
   final AppStrings s;
   final ConnectionState conn;
   final List<_NavDef> nav;
-  const _Sidebar({required this.p, required this.s, required this.conn, required this.nav});
+  final bool inDrawer;
+  final bool showIdentity;
+  const _Sidebar({
+    required this.p,
+    required this.s,
+    required this.conn,
+    required this.nav,
+    this.inDrawer = false,
+    this.showIdentity = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      width: 212,
+    final body = Container(
+      width: inDrawer ? null : 212,
       decoration: BoxDecoration(
         color: p.surface,
-        border: Border(right: BorderSide(color: p.border)),
+        border: inDrawer ? null : Border(right: BorderSide(color: p.border)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 6, 10, 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(s.t('appName'),
-                    style: AppFonts.sans(size: 15, weight: FontWeight.w800, color: p.text)),
-                const SizedBox(height: 2),
-                Text('v2.4.1 · ${conn.mode == Transport.dbus ? 'linux' : 'remote'}',
-                    style: AppFonts.mono(size: 10.5, color: p.textFaint)),
-              ],
-            ),
-          ),
-          for (final n in nav) _navTile(ref, n),
+          if (showIdentity) _identity(),
+          for (final n in nav) _navTile(context, ref, n),
           const Spacer(),
-          _signOutTile(ref),
+          _signOutTile(context, ref),
+        ],
+      ),
+    );
+    return inDrawer ? SafeArea(child: body) : body;
+  }
+
+  Widget _identity() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 4, 10, 16),
+      child: Row(
+        children: [
+          Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(color: p.accent, borderRadius: BorderRadius.circular(7)),
+            child: const Icon(Icons.speed, size: 15, color: Colors.white),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(s.t('appName'),
+                style: AppFonts.sans(size: 15, weight: FontWeight.w800, color: p.text)),
+          ),
         ],
       ),
     );
   }
 
-  Widget _navTile(WidgetRef ref, _NavDef n) {
+  Widget _navTile(BuildContext context, WidgetRef ref, _NavDef n) {
     final active = conn.screen == n.screen;
     final locked = n.feature != null && conn.permissions.codeFor(n.feature!) == 'r';
     return Padding(
@@ -290,7 +339,10 @@ class _Sidebar extends ConsumerWidget {
         borderRadius: BorderRadius.circular(6),
         child: InkWell(
           borderRadius: BorderRadius.circular(6),
-          onTap: () => ref.read(connectionProvider.notifier).goScreen(n.screen),
+          onTap: () {
+            if (inDrawer) Navigator.of(context).pop();
+            ref.read(connectionProvider.notifier).goScreen(n.screen);
+          },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
             child: Row(
@@ -313,98 +365,34 @@ class _Sidebar extends ConsumerWidget {
     );
   }
 
-  Widget _signOutTile(WidgetRef ref) {
-    return InkWell(
-      onTap: () => ref.read(connectionProvider.notifier).signOut(),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(border: Border(top: BorderSide(color: p.border))),
-        child: Row(
-          children: [
-            Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(color: p.success, shape: BoxShape.circle)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(conn.connLabel,
-                      style: AppFonts.sans(size: 12.5, weight: FontWeight.w700, color: p.text)),
-                  Text(s.t('signOutLabel'),
-                      style: AppFonts.sans(size: 11, color: p.textDim)),
-                ],
-              ),
+  Widget _signOutTile(BuildContext context, WidgetRef ref) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Material(
+        color: p.surface2,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () {
+            if (inDrawer) Navigator.of(context).pop();
+            ref.read(connectionProvider.notifier).signOut();
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+            decoration: BoxDecoration(
+              border: Border.all(color: p.border),
+              borderRadius: BorderRadius.circular(8),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Bottom navigation shown on narrow (mobile) layouts.
-class ShellBottomNav extends ConsumerWidget {
-  const ShellBottomNav({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final p = ref.watch(paletteProvider);
-    final s = ref.watch(stringsProvider);
-    final conn = ref.watch(connectionProvider);
-    final nav = _navDefs.where((n) {
-      if (n.dbusOnly) return conn.mode == Transport.dbus;
-      if (n.feature != null) return conn.permissions.codeFor(n.feature!) != 'none';
-      return true;
-    }).toList();
-
-    return Container(
-      decoration: BoxDecoration(
-        color: p.surface,
-        border: Border(top: BorderSide(color: p.border)),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            for (final n in nav)
-              _bottomItem(ref, p, s, conn, n),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _bottomItem(
-      WidgetRef ref, Palette p, AppStrings s, ConnectionState conn, _NavDef n) {
-    final active = conn.screen == n.screen;
-    final locked = n.feature != null && conn.permissions.codeFor(n.feature!) == 'r';
-    return GestureDetector(
-      onTap: () => ref.read(connectionProvider.notifier).goScreen(n.screen),
-      child: Container(
-        constraints: const BoxConstraints(minWidth: 74),
-        padding: const EdgeInsets.fromLTRB(6, 9, 6, 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(n.icon, size: 18, color: active ? p.accent : p.textFaint),
-                if (locked)
-                  Positioned(
-                    right: -8,
-                    top: -4,
-                    child: Icon(Icons.lock_outline, size: 9, color: p.textFaint),
-                  ),
+                Icon(Icons.logout, size: 15, color: p.text),
+                const SizedBox(width: 8),
+                Text(s.t('signOutLabel'),
+                    style: AppFonts.sans(size: 12.5, weight: FontWeight.w700, color: p.text)),
               ],
             ),
-            const SizedBox(height: 3),
-            Text(s.t(n.labelKey),
-                style: AppFonts.sans(
-                    size: 10, weight: FontWeight.w700, color: active ? p.accent : p.textDim)),
-          ],
+          ),
         ),
       ),
     );
