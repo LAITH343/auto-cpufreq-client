@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Discover auto-cpufreq gateways on your local network.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_autocpufreq._tcp</string>
+	</array>
 </dict>
 </plist>

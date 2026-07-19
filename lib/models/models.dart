@@ -282,6 +282,19 @@ class Device {
   final Transport transport;
   final bool online;
   final bool gatewayDisabled;
+
+  /// Whether the remote gateway uses TLS. Discovered/saved gateways default to
+  /// HTTPS.
+  final bool secure;
+
+  /// App-owned path to the pinned certificate for this device, if one was
+  /// trusted via TOFU or imported. Null when the cert is publicly trusted or
+  /// the device is plain HTTP.
+  final String? certPath;
+
+  /// Last username used to sign in to this device (for prefilling login).
+  final String? user;
+
   const Device({
     required this.id,
     required this.name,
@@ -290,10 +303,48 @@ class Device {
     required this.transport,
     required this.online,
     this.gatewayDisabled = false,
+    this.secure = true,
+    this.certPath,
+    this.user,
   });
 
   String get hostLabel => port > 0 ? '$host:$port' : host;
-  String get badge => transport == Transport.dbus ? 'D-Bus' : 'HTTPS';
+  String get badge => transport == Transport.dbus ? 'D-Bus' : (secure ? 'HTTPS' : 'HTTP');
+
+  Device copyWith({String? name, bool? online, String? certPath, String? user}) => Device(
+        id: id,
+        name: name ?? this.name,
+        host: host,
+        port: port,
+        transport: transport,
+        online: online ?? this.online,
+        gatewayDisabled: gatewayDisabled,
+        secure: secure,
+        certPath: certPath ?? this.certPath,
+        user: user ?? this.user,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'host': host,
+        'port': port,
+        'secure': secure,
+        if (certPath != null) 'certPath': certPath,
+        if (user != null) 'user': user,
+      };
+
+  factory Device.fromJson(Map<String, dynamic> j) => Device(
+        id: j['id'] as String,
+        name: j['name'] as String,
+        host: j['host'] as String,
+        port: (j['port'] as num).toInt(),
+        transport: Transport.https,
+        online: false,
+        secure: (j['secure'] as bool?) ?? true,
+        certPath: j['certPath'] as String?,
+        user: j['user'] as String?,
+      );
 }
 
 /// Raised by the repository when the engine rejects a config as invalid.

@@ -18,6 +18,10 @@ dependencies:
   dbus: ^0.7.13
   window_manager: ^0.5.2
   shared_preferences: ^2.5.5
+  file_picker: ^11.0.2
+  path_provider: ^2.1.5
+  crypto: ^3.0.6
+  multicast_dns: ^0.3.3
 
 dev_dependencies:
   flutter_test:

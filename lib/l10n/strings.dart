@@ -34,8 +34,24 @@ class AppStrings {
     'thisComputer': 'This computer', 'thisComputerName': 'This computer',
     'localEngineDetected': 'Local engine detected',
     'savedDevices': 'Saved devices', 'discoveredLan': 'Discovered on network', 'add': 'Add',
+    'noneDiscovered': 'No gateways found on the network yet.',
+    'checkingServer': 'Checking server…',
     'addDeviceManually': 'Add device manually', 'hostPlaceholder': 'Host',
     'portPlaceholder': 'Port', 'connect': 'Connect',
+    'remoteDevice': 'Remote device', 'useHttps': 'Use HTTPS',
+    'certHelp':
+        "Optional. You'll be asked to verify the server's certificate on first connect; import a file only to pin one manually.",
+    'connecting': 'Connecting…',
+    'chooseCert': 'Import certificate file', 'changeCert': 'Change', 'removeCert': 'Remove',
+    'trustTitle': 'Verify this certificate',
+    'trustHelp':
+        'Compare this SHA-256 fingerprint with the one printed on the host by "sudo auto-cpufreq gateway fingerprint". Only trust it if they match.',
+    'certChangedWarn':
+        "This server's certificate has changed since you last trusted it. Only continue if you expected this (e.g. the cert was renewed).",
+    'certFingerprint': 'Fingerprint (SHA-256)', 'trust': 'Trust & save',
+    'verifiedCert': 'Verified certificate',
+    'invalidCert': 'That file is not a valid certificate.',
+    'certSaved': 'Certificate pinned for this connection.',
     'devices': 'Devices', 'signIn': 'Sign in', 'verifyFingerprint': 'Verify this server',
     'fingerprintHelp':
         'First connection to this device. Compare this fingerprint with the one printed by the CLI when enabling the gateway.',
@@ -118,8 +134,24 @@ class AppStrings {
     'thisComputer': 'هذا الحاسوب', 'thisComputerName': 'هذا الحاسوب',
     'localEngineDetected': 'تم اكتشاف المحرك المحلي',
     'savedDevices': 'الأجهزة المحفوظة', 'discoveredLan': 'مكتشفة على الشبكة', 'add': 'إضافة',
+    'noneDiscovered': 'لم يتم العثور على بوابات على الشبكة بعد.',
+    'checkingServer': 'جارٍ فحص الخادم…',
     'addDeviceManually': 'إضافة جهاز يدويًا', 'hostPlaceholder': 'المضيف',
     'portPlaceholder': 'المنفذ', 'connect': 'اتصال',
+    'remoteDevice': 'جهاز بعيد', 'useHttps': 'استخدام HTTPS',
+    'certHelp':
+        'اختياري. سيُطلب منك التحقق من شهادة الخادم عند أول اتصال؛ استورد ملفًا فقط لتثبيت شهادة يدويًا.',
+    'connecting': 'جارٍ الاتصال…',
+    'chooseCert': 'استيراد ملف شهادة', 'changeCert': 'تغيير', 'removeCert': 'إزالة',
+    'trustTitle': 'تحقّق من هذه الشهادة',
+    'trustHelp':
+        'قارن بصمة SHA-256 هذه بالبصمة المطبوعة على المضيف عبر "sudo auto-cpufreq gateway fingerprint". لا تثق بها إلا إذا تطابقتا.',
+    'certChangedWarn':
+        'تغيّرت شهادة هذا الخادم منذ آخر مرة وثقت بها. تابع فقط إذا كنت تتوقع ذلك (مثل تجديد الشهادة).',
+    'certFingerprint': 'البصمة (SHA-256)', 'trust': 'الوثوق والحفظ',
+    'verifiedCert': 'شهادة موثّقة',
+    'invalidCert': 'هذا الملف ليس شهادة صالحة.',
+    'certSaved': 'تم تثبيت الشهادة لهذا الاتصال.',
     'devices': 'الأجهزة', 'signIn': 'تسجيل الدخول', 'verifyFingerprint': 'تحقق من هذا الخادم',
     'fingerprintHelp':
         'أول اتصال بهذا الجهاز. قارن هذه البصمة بالبصمة التي طبعتها الأداة عند تفعيل البوابة.',
