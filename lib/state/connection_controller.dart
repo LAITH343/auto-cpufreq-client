@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -402,6 +403,18 @@ class ConnectionController extends StateNotifier<ConnectionState> {
     super.dispose();
   }
 }
+
+/// The engine installs its D-Bus policy here; its presence is what makes the
+/// local engine reachable over the system bus.
+const String _dbusPolicyPath = '/usr/share/dbus-1/system.d/org.autocpufreq.conf';
+
+/// Whether a local auto-cpufreq engine can be reached over D-Bus: only on Linux
+/// and only when the engine's D-Bus policy file is installed. Off every other
+/// platform (Android, etc.) the local-engine card is hidden entirely.
+final localEngineAvailableProvider = Provider<bool>((ref) {
+  if (!Platform.isLinux) return false;
+  return File(_dbusPolicyPath).existsSync();
+});
 
 final connectionProvider =
     StateNotifierProvider<ConnectionController, ConnectionState>(

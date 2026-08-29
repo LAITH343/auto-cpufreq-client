@@ -21,6 +21,7 @@ class DevicesScreen extends ConsumerWidget {
     final conn = ref.watch(connectionProvider);
     final connCtrl = ref.read(connectionProvider.notifier);
     final saved = ref.watch(savedDevicesProvider);
+    final hasLocalEngine = ref.watch(localEngineAvailableProvider);
     final discovered = ref.watch(discoveredDevicesProvider).valueOrNull ?? const [];
 
     // Don't list a discovered device that's already saved.
@@ -37,10 +38,12 @@ class DevicesScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _header(p, s),
-              const SizedBox(height: 28),
-              SectionLabel(p, s.t('thisComputer')),
-              const SizedBox(height: 10),
-              _localTile(p, s, conn, connCtrl),
+              if (hasLocalEngine) ...[
+                const SizedBox(height: 28),
+                SectionLabel(p, s.t('thisComputer')),
+                const SizedBox(height: 10),
+                _localTile(p, s, conn, connCtrl),
+              ],
               if (saved.isNotEmpty) ...[
                 const SizedBox(height: 28),
                 SectionLabel(p, s.t('savedDevices')),

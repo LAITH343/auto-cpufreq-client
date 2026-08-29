@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:auto_cpufreq_client/app.dart';
+import 'package:auto_cpufreq_client/state/connection_controller.dart';
 import 'package:auto_cpufreq_client/state/settings_controller.dart';
 
 void main() {
@@ -13,7 +14,10 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
 
     await tester.pumpWidget(ProviderScope(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        localEngineAvailableProvider.overrideWithValue(true),
+      ],
       child: const AutoCpufreqApp(),
     ));
     await tester.pump();

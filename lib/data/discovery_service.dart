@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:multicast_dns/multicast_dns.dart';
 
@@ -11,11 +13,21 @@ import '../models/models.dart';
 /// mobile platform (Linux, Windows, macOS, Android, iOS).
 class MdnsDiscovery {
   static const String service = '_autocpufreq._tcp.local';
+  static const MethodChannel _channel = MethodChannel('auto_cpufreq/mdns');
 
   /// Runs one discovery sweep, returning the gateways seen within [timeout].
   static Future<List<Device>> scan(
       {Duration timeout = const Duration(seconds: 3)}) async {
-    final client = MDnsClient();
+    // Android drops multicast without a held WifiManager.MulticastLock.
+    await _acquireLock();
+    // reusePort must be off: Android's socket bind rejects SO_REUSEPORT and
+    // fails the whole query otherwise.
+    final client = MDnsClient(
+      rawDatagramSocketFactory: (dynamic host, int port,
+              {bool reuseAddress = true, bool reusePort = true, int ttl = 1}) =>
+          RawDatagramSocket.bind(host, port,
+              reuseAddress: true, reusePort: false, ttl: ttl),
+    );
     final devices = <String, Device>{};
     final deadline = DateTime.now().add(timeout);
     try {
@@ -65,8 +77,23 @@ class MdnsDiscovery {
       // Multicast may be blocked (no permission / no network); treat as empty.
     } finally {
       client.stop();
+      await _releaseLock();
     }
     return devices.values.toList();
+  }
+
+  static Future<void> _acquireLock() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('acquire');
+    } catch (_) {}
+  }
+
+  static Future<void> _releaseLock() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('release');
+    } catch (_) {}
   }
 
   /// Drains [stream] until it closes or [budget] elapses, whichever comes first.
