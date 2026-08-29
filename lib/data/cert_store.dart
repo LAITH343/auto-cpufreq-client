@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:path_provider/path_provider.dart';
 
 /// A certificate that has been picked and parsed but not yet trusted. The
@@ -43,19 +43,13 @@ class CertStore {
   /// selection. Returns null if the user cancels. Throws [InvalidCertException]
   /// if the file is not a certificate.
   static Future<PickedCert?> pick() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pem', 'crt', 'cer', 'der'],
-      withData: true,
+    const group = XTypeGroup(
+      label: 'Certificates',
+      extensions: ['pem', 'crt', 'cer', 'der'],
     );
-    if (result == null || result.files.isEmpty) return null;
-    final file = result.files.single;
-    final bytes = file.bytes ??
-        (file.path != null ? await File(file.path!).readAsBytes() : null);
-    if (bytes == null) {
-      throw InvalidCertException('Could not read the selected file.');
-    }
-    return _parse(file.name, bytes);
+    final file = await openFile(acceptedTypeGroups: [group]);
+    if (file == null) return null;
+    return _parse(file.name, await file.readAsBytes());
   }
 
   /// Writes [cert] into app storage and returns the stable file path to link to
