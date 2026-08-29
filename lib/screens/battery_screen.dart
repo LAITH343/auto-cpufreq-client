@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/engine_repository.dart';
 import '../l10n/strings.dart';
 import '../state/connection_controller.dart';
 import '../state/settings_controller.dart';
 import '../theme/palette.dart';
 import '../theme/typography.dart';
+import '../widgets/busy.dart';
 import '../widgets/common.dart';
 
 class BatteryScreen extends ConsumerWidget {
@@ -91,9 +93,9 @@ class BatteryScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _thresholdCard(p, s, th.start, th.stop, repo),
+                      _ThresholdCard(start: th.start, stop: th.stop, repo: repo),
                       const SizedBox(height: 18),
-                      _conservationCard(p, s, snap.conservationMode, repo),
+                      _conservationCard(context, ref, p, s, snap.conservationMode, repo),
                     ],
                   ),
                 ),
@@ -105,7 +107,63 @@ class BatteryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _thresholdCard(Palette p, AppStrings s, int start, int stop, dynamic repo) {
+  Widget _conservationCard(BuildContext context, WidgetRef ref, Palette p, AppStrings s, bool on,
+      EngineRepository? repo) {
+    return AppCard(
+      p: p,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      radius: BorderRadius.circular(10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(s.t('conservationMode'),
+                    style: AppFonts.sans(size: 13.5, weight: FontWeight.w700, color: p.text)),
+                const SizedBox(height: 2),
+                Text(s.t('conservationModeHelp'), style: AppFonts.sans(size: 12, color: p.textDim)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          AppSwitch(
+              p: p,
+              value: on,
+              onChanged: repo == null
+                  ? null
+                  : (v) => runBusy(context, ref, () => repo.setConservationMode(v))),
+        ],
+      ),
+    );
+  }
+}
+
+/// Charge-threshold card. Tracks the slider locally while dragging and commits
+/// once on release (with a progress overlay) so the engine isn't spammed on
+/// every tick and the thumb stays responsive.
+class _ThresholdCard extends ConsumerStatefulWidget {
+  final int start;
+  final int stop;
+  final EngineRepository? repo;
+  const _ThresholdCard({required this.start, required this.stop, required this.repo});
+
+  @override
+  ConsumerState<_ThresholdCard> createState() => _ThresholdCardState();
+}
+
+class _ThresholdCardState extends ConsumerState<_ThresholdCard> {
+  RangeValues? _dragging;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = ref.watch(paletteProvider);
+    final s = ref.watch(stringsProvider);
+    final values = _dragging ??
+        RangeValues(widget.start.toDouble(), widget.stop.toDouble());
+    final start = values.start.round();
+    final stop = values.end.round();
+
     return AppCard(
       p: p,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
@@ -144,35 +202,19 @@ class BatteryScreen extends ConsumerWidget {
             divisions: 100,
             activeColor: p.accent,
             inactiveColor: p.hover,
-            values: RangeValues(start.toDouble(), stop.toDouble()),
+            values: values,
             labels: RangeLabels('$start', '$stop'),
-            onChanged: (v) => repo?.setBatteryThreshold(v.start.round(), v.end.round()),
+            onChanged: widget.repo == null
+                ? null
+                : (v) => setState(() => _dragging = v),
+            onChangeEnd: widget.repo == null
+                ? null
+                : (v) async {
+                    await runBusy(context, ref,
+                        () => widget.repo!.setBatteryThreshold(v.start.round(), v.end.round()));
+                    if (mounted) setState(() => _dragging = null);
+                  },
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _conservationCard(Palette p, AppStrings s, bool on, dynamic repo) {
-    return AppCard(
-      p: p,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      radius: BorderRadius.circular(10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(s.t('conservationMode'),
-                    style: AppFonts.sans(size: 13.5, weight: FontWeight.w700, color: p.text)),
-                const SizedBox(height: 2),
-                Text(s.t('conservationModeHelp'), style: AppFonts.sans(size: 12, color: p.textDim)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 14),
-          AppSwitch(p: p, value: on, onChanged: (v) => repo?.setConservationMode(v)),
         ],
       ),
     );

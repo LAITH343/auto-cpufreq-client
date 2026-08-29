@@ -8,6 +8,7 @@ import '../state/connection_controller.dart';
 import '../state/settings_controller.dart';
 import '../theme/palette.dart';
 import '../theme/typography.dart';
+import '../widgets/busy.dart';
 import '../widgets/common.dart';
 
 class ConfigScreen extends ConsumerStatefulWidget {
@@ -89,7 +90,8 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
                   PrimaryButton(
                     p: p,
                     label: s.t('apply'),
-                    onPressed: (dirty && editable) ? () => ctrl.apply() : null,
+                    onPressed:
+                        (dirty && editable) ? () => runBusy(context, ref, ctrl.apply) : null,
                   ),
                   const SizedBox(width: 10),
                   GhostButton(
@@ -288,7 +290,9 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
             child: AppSwitch(
               p: p,
               value: enabled,
-              onChanged: editable ? (v) => repo?.setBluetoothBoot(v) : null,
+              onChanged: editable && repo != null
+                  ? (v) => runBusy(context, ref, () => repo.setBluetoothBoot(v))
+                  : null,
             ),
           ),
         ],

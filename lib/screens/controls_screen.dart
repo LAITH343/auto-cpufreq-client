@@ -6,6 +6,7 @@ import '../state/settings_controller.dart';
 import '../theme/palette.dart';
 import '../theme/typography.dart';
 import '../util/format.dart';
+import '../widgets/busy.dart';
 import '../widgets/common.dart';
 
 class ControlsScreen extends ConsumerWidget {
@@ -74,7 +75,9 @@ class ControlsScreen extends ConsumerWidget {
                 SegmentedControl<String>(
                   p: p,
                   selected: snap.governorOverride,
-                  onChanged: canWrite ? (v) => repo?.setGovernorOverride(v) : null,
+                  onChanged: canWrite && repo != null
+                      ? (v) => runBusy(context, ref, () => repo.setGovernorOverride(v))
+                      : null,
                   options: [
                     SegmentOption('auto', Labels.governor(s, 'auto')),
                     SegmentOption('performance', Labels.governor(s, 'performance')),
@@ -89,7 +92,9 @@ class ControlsScreen extends ConsumerWidget {
                 SegmentedControl<String>(
                   p: p,
                   selected: snap.turboOverride,
-                  onChanged: canWrite ? (v) => repo?.setTurboOverride(v) : null,
+                  onChanged: canWrite && repo != null
+                      ? (v) => runBusy(context, ref, () => repo.setTurboOverride(v))
+                      : null,
                   options: [
                     SegmentOption('auto', Labels.turbo(s, 'auto')),
                     SegmentOption('always', Labels.turbo(s, 'always')),

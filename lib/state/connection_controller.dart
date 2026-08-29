@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/cert_store.dart';
+import '../data/credential_store.dart';
 import '../data/dbus_engine_repository.dart';
 import '../data/engine_repository.dart';
 import '../data/http_engine_repository.dart';
@@ -95,6 +96,10 @@ class ConnectionState {
   final bool connecting;
   final String? error;
   final bool reconnecting;
+
+  /// True while auto-login from a saved "stay signed in" device is in progress
+  /// at startup; the root shows a splash instead of flashing the devices list.
+  final bool restoring;
   final EngineRepository? repository;
 
   /// Active remote sign-in flow (null unless [flow] is [AppFlow.login]).
@@ -118,6 +123,7 @@ class ConnectionState {
     this.connecting = false,
     this.error,
     this.reconnecting = false,
+    this.restoring = false,
     this.repository,
     this.login,
     this.user,
@@ -144,6 +150,7 @@ class ConnectionState {
     bool? connecting,
     Object? error = _sentinel,
     bool? reconnecting,
+    bool? restoring,
     Object? repository = _sentinel,
     Object? login = _sentinel,
     Object? user = _sentinel,
@@ -159,6 +166,7 @@ class ConnectionState {
         connecting: connecting ?? this.connecting,
         error: error == _sentinel ? this.error : error as String?,
         reconnecting: reconnecting ?? this.reconnecting,
+        restoring: restoring ?? this.restoring,
         repository: repository == _sentinel ? this.repository : repository as EngineRepository?,
         login: login == _sentinel ? this.login : login as LoginFlow?,
         user: user == _sentinel ? this.user : user as String?,
@@ -170,10 +178,70 @@ class ConnectionState {
 }
 
 class ConnectionController extends StateNotifier<ConnectionState> {
-  ConnectionController(this._ref) : super(const ConnectionState());
+  ConnectionController(this._ref)
+      : super(ConnectionState(
+            restoring: _ref.read(savedDevicesProvider).any((d) => d.user != null))) {
+    if (state.restoring) Future.microtask(_restoreSession);
+  }
 
   final Ref _ref;
   StreamSubscription<ConnectionStatus>? _statusSub;
+
+  /// Attempts silent auto-login to the most recently saved device that has a
+  /// stored password. Any failure quietly falls back to the devices list.
+  Future<void> _restoreSession() async {
+    final saved = _ref.read(savedDevicesProvider);
+    Device? device;
+    for (final d in saved) {
+      if (d.user != null) {
+        device = d;
+        break;
+      }
+    }
+    final user = device?.user;
+    if (device == null || user == null) {
+      state = state.copyWith(restoring: false);
+      return;
+    }
+    final password = await CredentialStore.read(device);
+    if (password == null) {
+      state = state.copyWith(restoring: false);
+      return;
+    }
+    try {
+      final repo = await HttpEngineRepository.connect(RemoteConfig(
+        host: device.host,
+        port: device.port,
+        useHttps: device.secure,
+        certPath: device.certPath,
+        username: user,
+        password: password,
+      ));
+      _enterShellRemote(repo, device, user);
+    } catch (_) {
+      state = state.copyWith(restoring: false);
+    }
+  }
+
+  /// Enters the connected shell for a remote (HTTP/S) repository.
+  void _enterShellRemote(EngineRepository repo, Device device, String user) {
+    _bindStatus(repo);
+    state = state.copyWith(
+      flow: AppFlow.shell,
+      screen: AppScreen.dashboard,
+      mode: Transport.https,
+      permissions: repo.capabilities.permissions,
+      hasUserManagement: repo.capabilities.hasUserManagement,
+      repository: repo,
+      login: null,
+      user: user,
+      host: device.hostLabel,
+      secure: device.secure,
+      connecting: false,
+      restoring: false,
+      error: null,
+    );
+  }
 
   /// Mirrors the repository's live-link health into [ConnectionState]. A
   /// terminal [ConnectionStatus.disconnected] (remote credentials rejected)
@@ -324,26 +392,14 @@ class ConnectionController extends StateNotifier<ConnectionState> {
     );
     try {
       final repo = await HttpEngineRepository.connect(cfg);
-      _bindStatus(repo);
+      final device = lf.device.copyWith(certPath: lf.certPath, user: user, online: true);
       if (remember) {
-        _ref.read(savedDevicesProvider.notifier).remember(
-              lf.device.copyWith(certPath: lf.certPath, user: user, online: true),
-            );
+        _ref.read(savedDevicesProvider.notifier).remember(device);
+        await CredentialStore.save(device, password);
+      } else {
+        await CredentialStore.delete(device);
       }
-      state = state.copyWith(
-        flow: AppFlow.shell,
-        screen: AppScreen.dashboard,
-        mode: Transport.https,
-        permissions: repo.capabilities.permissions,
-        hasUserManagement: repo.capabilities.hasUserManagement,
-        repository: repo,
-        login: null,
-        user: user,
-        host: lf.device.hostLabel,
-        secure: lf.device.secure,
-        connecting: false,
-        error: null,
-      );
+      _enterShellRemote(repo, device, user);
     } on UntrustedCertException catch (e) {
       // Cert changed between probe and login — re-run the trust step.
       _patchLogin(
@@ -376,7 +432,16 @@ class ConnectionController extends StateNotifier<ConnectionState> {
   void backToDevices() =>
       state = state.copyWith(flow: AppFlow.devices, login: null, error: null);
 
-  void forgetSaved(String id) => _ref.read(savedDevicesProvider.notifier).forget(id);
+  void forgetSaved(String id) {
+    final saved = _ref.read(savedDevicesProvider);
+    for (final d in saved) {
+      if (d.id == id) {
+        CredentialStore.delete(d);
+        break;
+      }
+    }
+    _ref.read(savedDevicesProvider.notifier).forget(id);
+  }
 
   /// Applies [update] to the active login flow, ignoring the result if the user
   /// has since navigated away or switched devices.

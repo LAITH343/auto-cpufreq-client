@@ -79,18 +79,23 @@ class _Root extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = ref.watch(paletteProvider);
     final flow = ref.watch(connectionProvider.select((c) => c.flow));
+    final restoring = ref.watch(connectionProvider.select((c) => c.restoring));
 
     final Widget body;
-    switch (flow) {
-      case AppFlow.devices:
-        body = const DevicesScreen();
-        break;
-      case AppFlow.login:
-        body = const LoginScreen();
-        break;
-      case AppFlow.shell:
-        body = const ShellScreen();
-        break;
+    if (restoring) {
+      body = Center(child: CircularProgressIndicator(color: palette.accent));
+    } else {
+      switch (flow) {
+        case AppFlow.devices:
+          body = const DevicesScreen();
+          break;
+        case AppFlow.login:
+          body = const LoginScreen();
+          break;
+        case AppFlow.shell:
+          body = const ShellScreen();
+          break;
+      }
     }
 
     return Scaffold(

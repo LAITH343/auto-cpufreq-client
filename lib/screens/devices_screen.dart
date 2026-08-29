@@ -24,7 +24,8 @@ class DevicesScreen extends ConsumerWidget {
     final hasLocalEngine = ref.watch(localEngineAvailableProvider);
     final discovered = ref.watch(discoveredDevicesProvider).valueOrNull ?? const [];
 
-    // Don't list a discovered device that's already saved.
+    // A saved device is "online" when it's currently visible on the LAN.
+    final discoveredKeys = {for (final d in discovered) '${d.host}:${d.port}'};
     final savedKeys = {for (final d in saved) '${d.host}:${d.port}'};
     final discoveredOnly =
         discovered.where((d) => !savedKeys.contains('${d.host}:${d.port}')).toList();
@@ -49,7 +50,11 @@ class DevicesScreen extends ConsumerWidget {
                 SectionLabel(p, s.t('savedDevices')),
                 const SizedBox(height: 10),
                 for (final d in saved) ...[
-                  _deviceTile(p, d, dashed: false, onTap: () => connCtrl.openLogin(d)),
+                  _deviceTile(
+                      p,
+                      d.copyWith(online: discoveredKeys.contains('${d.host}:${d.port}')),
+                      dashed: false,
+                      onTap: () => connCtrl.openLogin(d)),
                   const SizedBox(height: 8),
                 ],
               ],
