@@ -15,8 +15,8 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
-                    "acquire" -> { acquire(); result.success(null) }
-                    "release" -> { release(); result.success(null) }
+                    "acquire" -> { acquireLock(); result.success(null) }
+                    "release" -> { releaseLock(); result.success(null) }
                     else -> result.notImplemented()
                 }
             }
@@ -24,7 +24,7 @@ class MainActivity : FlutterActivity() {
 
     // mDNS reception on Android needs a held multicast lock; without it the
     // socket never sees the group traffic and discovery silently returns empty.
-    private fun acquire() {
+    private fun acquireLock() {
         if (lock == null) {
             val wifi = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
             lock = wifi.createMulticastLock("auto_cpufreq_mdns").apply {
@@ -34,7 +34,7 @@ class MainActivity : FlutterActivity() {
         lock?.acquire()
     }
 
-    private fun release() {
+    private fun releaseLock() {
         lock?.let { if (it.isHeld) it.release() }
     }
 
