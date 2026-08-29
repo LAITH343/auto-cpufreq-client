@@ -74,15 +74,18 @@ class _CertCapture {
 class HttpEngineRepository implements EngineRepository {
   final RemoteConfig _cfg;
   final HttpClient _http;
-  final String _token;
+  String _token;
 
   final StreamController<EngineSnapshot> _controller =
       StreamController<EngineSnapshot>.broadcast();
+  final StreamController<ConnectionStatus> _status =
+      StreamController<ConnectionStatus>.broadcast();
   final List<HistPoint> _history = [];
 
   WebSocket? _ws;
   StreamSubscription? _wsSub;
   bool _disposed = false;
+  bool _reconnecting = false;
 
   late EngineSnapshot _snapshot;
 
@@ -173,10 +176,17 @@ class HttpEngineRepository implements EngineRepository {
   @override
   Stream<EngineSnapshot> get stream => _controller.stream;
 
+  @override
+  Stream<ConnectionStatus> get status => _status.stream;
+
   Permissions get _perms => capabilities.permissions;
 
   void _emit() {
     if (!_controller.isClosed) _controller.add(_snapshot);
+  }
+
+  void _pushStatus(ConnectionStatus s) {
+    if (!_status.isClosed) _status.add(s);
   }
 
   // ---- transport ----
@@ -310,24 +320,89 @@ class HttpEngineRepository implements EngineRepository {
       engineVersion: (meta['version'] as String?) ?? '',
     );
 
-    if (_perms.canRead('stats')) await _openEvents();
+    if (_perms.canRead('stats')) {
+      try {
+        await _openEvents();
+      } catch (_) {
+        // First reading is already in the snapshot; recover the live stream.
+        _onStreamLost();
+      }
+    }
     _emit();
   }
 
   Future<void> _openEvents() async {
+    await _wsSub?.cancel();
     final url = '${_cfg.wsScheme}://${_cfg.host}:${_cfg.port}/v1/events?token=$_token';
-    try {
-      _ws = await WebSocket.connect(url, customClient: _http);
-    } catch (_) {
-      // Live stream is best-effort; the snapshot already holds a first reading.
-      return;
-    }
+    _ws = await WebSocket.connect(url, customClient: _http);
     _wsSub = _ws!.listen(
       _onFrame,
-      onDone: () {},
-      onError: (_) {},
+      onDone: _onStreamLost,
+      onError: (_) => _onStreamLost(),
       cancelOnError: true,
     );
+  }
+
+  /// Called when the event socket closes unexpectedly. Drives a bounded-backoff
+  /// reconnect against the same gateway host: a fresh login (a gateway restart
+  /// drops all sessions in an isolated network, so the old token is gone),
+  /// snapshot refresh, then a new event socket. Rejected credentials are
+  /// terminal. Never contacts any host other than the configured gateway.
+  void _onStreamLost() {
+    if (_disposed || _reconnecting) return;
+    _reconnecting = true;
+    _pushStatus(ConnectionStatus.reconnecting);
+    _reconnect();
+  }
+
+  Future<void> _reconnect() async {
+    var delay = const Duration(seconds: 1);
+    while (!_disposed) {
+      await Future<void>.delayed(delay);
+      if (_disposed) return;
+      try {
+        final login = await _login(_http, _cfg);
+        _token = login.$1;
+        await _refreshSnapshot();
+        if (_perms.canRead('stats')) await _openEvents();
+        _reconnecting = false;
+        _pushStatus(ConnectionStatus.connected);
+        return;
+      } on AuthException {
+        // Credentials are no longer accepted (user disabled/deleted, password
+        // changed). Retrying cannot help — surface a terminal disconnect.
+        _reconnecting = false;
+        _pushStatus(ConnectionStatus.disconnected);
+        return;
+      } catch (_) {
+        if (delay < const Duration(seconds: 30)) delay *= 2;
+      }
+    }
+  }
+
+  /// Re-fetches the mutable snapshot fields after a reconnect, preserving the
+  /// accumulated history. Sections the caller can't read are left untouched.
+  Future<void> _refreshSnapshot() async {
+    final report = _perms.canRead('stats') ? await _getJson('/v1/status') : null;
+    final configMap = _perms.canRead('config') ? await _getJson('/v1/config') : null;
+    final overrides = _perms.canRead('controls') ? await _getJson('/v1/overrides') : null;
+    final reportMap = report ?? const {};
+    if (report != null) _pushHistory(reportMap);
+    _snapshot = _snapshot.copyWith(
+      cpu: report != null ? _parseCpu(reportMap) : null,
+      cores: report != null ? _parseCores(reportMap) : null,
+      power: report != null ? _parsePower(reportMap) : null,
+      history: List.of(_history),
+      config: configMap != null
+          ? _parseConfig(configMap, _snapshot.freqLimits, _snapshot.availableGovernors)
+          : null,
+      governorOverride:
+          overrides != null ? _fromEngineGovernor((overrides['governor'] as String?) ?? 'default') : null,
+      turboOverride: overrides != null ? (overrides['turbo'] as String?) ?? 'auto' : null,
+      batteryThreshold: report != null ? _parseThreshold(reportMap, _snapshot.batteryThreshold) : null,
+      batteries: report != null ? _parseBatteries(reportMap) : null,
+    );
+    _emit();
   }
 
   void _onFrame(dynamic data) {
@@ -477,6 +552,7 @@ class HttpEngineRepository implements EngineRepository {
     _wsSub?.cancel();
     _ws?.close();
     _controller.close();
+    _status.close();
     // Best-effort logout so the gateway can drop the session, then close the
     // client once the request has been sent.
     _logout().whenComplete(() => _http.close(force: true));

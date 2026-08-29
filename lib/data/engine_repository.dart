@@ -101,6 +101,11 @@ class EngineChoices {
   static const turboMode = ['auto', 'always', 'never'];
 }
 
+/// Health of the live link to a device. Reconnection targets only the device
+/// itself (the local D-Bus engine, or the configured gateway host) — never any
+/// external network — so it works on fully isolated networks.
+enum ConnectionStatus { connected, reconnecting, disconnected }
+
 /// What a given connection is allowed to do. D-Bus connections have full
 /// access plus user management; HTTP connections carry the logged-in user's
 /// permission matrix and never expose user management.
@@ -119,6 +124,11 @@ abstract class EngineRepository {
   EngineCapabilities get capabilities;
   EngineSnapshot get snapshot;
   Stream<EngineSnapshot> get stream;
+
+  /// Live-link health. Emits [ConnectionStatus.reconnecting] when the stream
+  /// drops and [ConnectionStatus.connected] once it is restored;
+  /// [ConnectionStatus.disconnected] is terminal (credentials no longer valid).
+  Stream<ConnectionStatus> get status;
 
   Future<void> setGovernorOverride(String value);
   Future<void> setTurboOverride(String value);

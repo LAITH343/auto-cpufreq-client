@@ -29,8 +29,13 @@ class DbusEngineRepository implements EngineRepository {
 
   final StreamController<EngineSnapshot> _controller =
       StreamController<EngineSnapshot>.broadcast();
+  final StreamController<ConnectionStatus> _status =
+      StreamController<ConnectionStatus>.broadcast();
   final List<StreamSubscription> _subs = [];
   final List<HistPoint> _history = [];
+
+  bool _disposed = false;
+  bool _reconnecting = false;
 
   late EngineSnapshot _snapshot;
 
@@ -70,13 +75,30 @@ class DbusEngineRepository implements EngineRepository {
   @override
   Stream<EngineSnapshot> get stream => _controller.stream;
 
+  @override
+  Stream<ConnectionStatus> get status => _status.stream;
+
   void _emit() {
     if (!_controller.isClosed) _controller.add(_snapshot);
+  }
+
+  void _pushStatus(ConnectionStatus s) {
+    if (!_status.isClosed) _status.add(s);
   }
 
   // ---- bootstrap + subscriptions ----
 
   Future<void> _bootstrap() async {
+    await _loadSnapshot();
+    await _subscribe();
+    _watchOwner();
+    await _startStats();
+    _emit();
+  }
+
+  /// Fetches a fresh full snapshot from the engine. Reused on first connect and
+  /// after the engine reappears on the bus.
+  Future<void> _loadSnapshot() async {
     final props = await _engine.getAllProperties(_engineIface);
     final report = await _callString(_engine, _engineIface, 'GetReport');
     final config = await _callString(_engine, _engineIface, 'GetConfig');
@@ -112,12 +134,13 @@ class DbusEngineRepository implements EngineRepository {
       appVersion: _appVersion,
       engineVersion: _readString(props['Version']),
     );
+  }
 
-    await _subscribe();
-    // Begin the StatsTick stream.
+  /// Begins the StatsTick stream. Must be re-issued after an engine restart
+  /// since the fresh process starts with no stats consumers.
+  Future<void> _startStats() async {
     await _engine.callMethod(_engineIface, 'StartStats', [],
         replySignature: DBusSignature(''));
-    _emit();
   }
 
   Future<void> _subscribe() async {
@@ -135,6 +158,42 @@ class DbusEngineRepository implements EngineRepository {
     add(_enginePath, _engineIface, 'ConfigChanged', (_) => _refreshConfig());
     add(_usersPath, _usersIface, 'UsersChanged', (_) => _refreshUsers());
     add(_usersPath, _usersIface, 'SessionRevoked', (_) => _refreshSessions());
+  }
+
+  /// Tracks ownership of the engine bus name. When the engine process exits its
+  /// name is released (reconnecting); when a new instance claims it we reload a
+  /// fresh snapshot and resume the stats stream. The signal subscriptions above
+  /// are bus-wide match rules and survive the restart, so they are not redone.
+  void _watchOwner() {
+    _subs.add(_client.nameOwnerChanged.listen((e) {
+      if (e.name != _engineBus) return;
+      if (e.newOwner == null) {
+        _pushStatus(ConnectionStatus.reconnecting);
+      } else {
+        _onEngineReappeared();
+      }
+    }));
+  }
+
+  Future<void> _onEngineReappeared() async {
+    if (_disposed || _reconnecting) return;
+    _reconnecting = true;
+    _pushStatus(ConnectionStatus.reconnecting);
+    var delay = const Duration(milliseconds: 250);
+    while (!_disposed) {
+      try {
+        await _loadSnapshot();
+        await _startStats();
+        _pushStatus(ConnectionStatus.connected);
+        _emit();
+        break;
+      } catch (_) {
+        // Engine name is claimed but the objects may not be ready yet; retry.
+        await Future<void>.delayed(delay);
+        if (delay < const Duration(seconds: 5)) delay *= 2;
+      }
+    }
+    _reconnecting = false;
   }
 
   void _onStatsTick(String json) {
@@ -316,10 +375,12 @@ class DbusEngineRepository implements EngineRepository {
 
   @override
   void dispose() {
+    _disposed = true;
     for (final s in _subs) {
       s.cancel();
     }
     _controller.close();
+    _status.close();
     _client.close();
   }
 

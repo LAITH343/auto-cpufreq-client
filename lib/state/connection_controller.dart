@@ -172,6 +172,27 @@ class ConnectionController extends StateNotifier<ConnectionState> {
   ConnectionController(this._ref) : super(const ConnectionState());
 
   final Ref _ref;
+  StreamSubscription<ConnectionStatus>? _statusSub;
+
+  /// Mirrors the repository's live-link health into [ConnectionState]. A
+  /// terminal [ConnectionStatus.disconnected] (remote credentials rejected)
+  /// tears the session down and returns to the devices list.
+  void _bindStatus(EngineRepository repo) {
+    _statusSub?.cancel();
+    _statusSub = repo.status.listen((s) {
+      switch (s) {
+        case ConnectionStatus.connected:
+          state = state.copyWith(reconnecting: false, error: null);
+          break;
+        case ConnectionStatus.reconnecting:
+          state = state.copyWith(reconnecting: true);
+          break;
+        case ConnectionStatus.disconnected:
+          _disconnect(error: 'Connection lost. Sign in again.');
+          break;
+      }
+    });
+  }
 
   static const Device localDevice = Device(
     id: 'local',
@@ -191,6 +212,7 @@ class ConnectionController extends StateNotifier<ConnectionState> {
     state = state.copyWith(connecting: true, error: null);
     try {
       final repo = await DbusEngineRepository.connect();
+      _bindStatus(repo);
       state = state.copyWith(
         flow: AppFlow.shell,
         screen: AppScreen.dashboard,
@@ -301,6 +323,7 @@ class ConnectionController extends StateNotifier<ConnectionState> {
     );
     try {
       final repo = await HttpEngineRepository.connect(cfg);
+      _bindStatus(repo);
       if (remember) {
         _ref.read(savedDevicesProvider.notifier).remember(
               lf.device.copyWith(certPath: lf.certPath, user: user, online: true),
@@ -365,13 +388,16 @@ class ConnectionController extends StateNotifier<ConnectionState> {
   void signOut() => _disconnect();
   void forgetDevice() => _disconnect();
 
-  void _disconnect() {
+  void _disconnect({String? error}) {
+    _statusSub?.cancel();
+    _statusSub = null;
     state.repository?.dispose();
-    state = const ConnectionState();
+    state = ConnectionState(error: error);
   }
 
   @override
   void dispose() {
+    _statusSub?.cancel();
     state.repository?.dispose();
     super.dispose();
   }
